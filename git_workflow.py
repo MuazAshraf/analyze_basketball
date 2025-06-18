@@ -661,7 +661,7 @@ Thumbs.db
         if not self._push_changes(env_config['branch'], total_files):
             return False
         
-        self._show_workflow_summary('production', env_config['branch'], merge_msg, total_files)
+        self._show_workflow_summary('prod', env_config['branch'], merge_msg, total_files)
         print(f"\n🎉 PRODUCTION DEPLOYMENT SUCCESSFUL!")
         print(f"   🌍 Changes are now LIVE for all users")
         print(f"   📈 Monitor your application for any issues")
