@@ -445,10 +445,85 @@ def update_existing_repo():
     """Update existing git repository."""
     print("🔄 Updating existing git repository...")
     
+    # First, pull latest changes from remote
+    if has_remote_origin():
+        current_branch = get_current_branch()
+        print(f"🔽 Pulling latest changes from remote...")
+        print(f"   Current branch: {current_branch}")
+        
+        # Check if remote branch exists
+        success, _, _ = run_command(f"git ls-remote --exit-code --heads origin {current_branch}", check=False)
+        if not success:
+            print(f"⚠️  Remote branch '{current_branch}' doesn't exist on origin")
+            print("   This is normal for new branches - it will be created when you push")
+            
+            # Try to pull from main/master instead if available
+            main_branches = ['main', 'master']
+            pulled_from_main = False
+            
+            for main_branch in main_branches:
+                success, _, _ = run_command(f"git ls-remote --exit-code --heads origin {main_branch}", check=False)
+                if success:
+                    print(f"   Attempting to pull latest changes from origin/{main_branch} instead...")
+                    success, stdout, error = run_command(f"git pull origin {main_branch}", check=False)
+                    if success:
+                        print(f"✅ Successfully pulled from origin/{main_branch}")
+                        pulled_from_main = True
+                        break
+                    else:
+                        print(f"⚠️  Failed to pull from {main_branch}: {error}")
+            
+            if not pulled_from_main:
+                print("ℹ️  No main/master branch to pull from - continuing with local changes")
+        else:
+            # Remote branch exists, try to pull from it
+            success, stdout, error = run_command(f"git pull origin {current_branch}", check=False)
+            
+            if success:
+                if "Already up to date" in stdout or "Already up-to-date" in stdout:
+                    print("✅ Repository is already up to date")
+                elif "Fast-forward" in stdout:
+                    print("✅ Fast-forwarded to latest changes")
+                    # Show what was pulled
+                    lines = stdout.split('\n')
+                    for line in lines:
+                        if 'file' in line and ('changed' in line or 'insertion' in line or 'deletion' in line):
+                            print(f"   📥 {line.strip()}")
+                elif stdout.strip():
+                    print("✅ Successfully pulled changes")
+                    print(f"   📥 {stdout.strip()}")
+                else:
+                    print("✅ Pull completed")
+            else:
+                if "merge conflict" in error.lower() or "conflict" in error.lower():
+                    print(f"⚠️  Merge conflicts detected:")
+                    print(f"   🔍 {error}")
+                    print("   ⚡ Please resolve conflicts manually and run the script again")
+                    return False
+                elif "diverged" in error.lower():
+                    print(f"⚠️  Branches have diverged:")
+                    print(f"   🔍 {error}")
+                    print("   💡 You may need to merge or rebase manually")
+                    
+                    response = input("Do you want to continue anyway? (y/N): ").strip().lower()
+                    if response != 'y':
+                        print("   ⏹️  Stopping to let you handle the divergence")
+                        return False
+                elif "couldn't find remote ref" in error.lower():
+                    print(f"⚠️  Remote branch '{current_branch}' not found on origin")
+                    print("   This branch will be created when you push")
+                else:
+                    print(f"⚠️  Pull failed: {error}")
+                    response = input("Do you want to continue without pulling? (y/N): ").strip().lower()
+                    if response != 'y':
+                        return False
+    else:
+        print("ℹ️  No remote origin configured, skipping pull")
+    
     # Analyze changes before adding
     changes, total_files, _ = analyze_changes()
     if total_files == 0:
-        print("ℹ️  No changes to commit")
+        print("ℹ️  No local changes to commit")
         return True
     
     display_changes(changes, total_files)
@@ -481,11 +556,33 @@ def update_existing_repo():
     # Push changes
     current_branch = get_current_branch()
     print(f"🚀 Pushing {total_files} changed files to GitHub...")
-    success, _, error = run_command(f"git push origin {current_branch}")
+    
+    # Check if this is the first push to this branch
+    success, _, _ = run_command(f"git ls-remote --exit-code --heads origin {current_branch}", check=False)
     if not success:
-        print(f"❌ Failed to push: {error}")
-        return False
-    print(f"✅ Successfully pushed to GitHub (origin/{current_branch})")
+        print(f"   Creating new remote branch: {current_branch}")
+        success, _, error = run_command(f"git push -u origin {current_branch}")
+    else:
+        success, _, error = run_command(f"git push origin {current_branch}")
+    
+    if not success:
+        # Handle common push errors
+        if "rejected" in error.lower() and "non-fast-forward" in error.lower():
+            print("❌ Push rejected - remote has newer commits")
+            print("   💡 This shouldn't happen since we pulled, but trying force push with lease...")
+            
+            success, _, error2 = run_command(f"git push --force-with-lease origin {current_branch}", check=False)
+            if success:
+                print("✅ Force push with lease successful")
+            else:
+                print(f"❌ Force push also failed: {error2}")
+                print("   🔧 Please check the repository status manually")
+                return False
+        else:
+            print(f"❌ Failed to push: {error}")
+            return False
+    else:
+        print(f"✅ Successfully pushed to GitHub (origin/{current_branch})")
     
     # Show what was pushed
     print(f"\n🎯 Pushed to GitHub:")

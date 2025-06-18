@@ -73,139 +73,7 @@ class GitWorkflow:
         except Exception as e:
             print(f"⚠️  Could not save config: {e}")
 
-    def get_gitignore_content(self):
-        """Get environment-aware .gitignore content."""
-        return """# Environments
-.env
-.env.*
-venv/
-.venv/
-env/
-.env/
-.devenv/
 
-# Development Tools
-.aider*/
-.aider.*/
-node_modules/
-.git_workflow_config.json
-
-# Python
-__pycache__/
-*.py[cod]
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# IDE and Editor files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Environment-specific files
-config/development.json
-config/staging.json
-config/production.json
-logs/
-*.log
-
-# Data and Media files
-*.csv
-*.json
-*.pdf
-*.xlsx
-*.xls
-*.txt
-!requirements.txt
-*.mp3
-*.mp4
-*.wav
-*.db
-*.sqlite
-*.sqlite3
-
-# Images
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.svg
-*.ico
-
-# Model and Binary files
-*.ckpt
-*.pt
-*.pth
-*.bin
-*.model
-*.h5
-*.pyd
-*.dll
-*.lib
-*.exe
-
-# Cache and temp files
-.cache/
-.pytest_cache/
-.coverage
-htmlcov/
-.aider.tags.cache.v3/
-
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-"""
-
-    def create_gitignore(self):
-        """Create .gitignore file with environment-aware exclusions."""
-        gitignore_content = self.get_gitignore_content()
-        
-        if os.path.exists('.gitignore'):
-            try:
-                with open('.gitignore', 'r') as f:
-                    existing_content = f.read()
-                
-                if existing_content.strip() == gitignore_content.strip():
-                    print("ℹ️  .gitignore file already exists with expected content")
-                    return True
-                else:
-                    print("⚠️  .gitignore file exists but has different content")
-                    response = input("Do you want to overwrite it? (y/N): ").strip().lower()
-                    if response != 'y':
-                        print("⏭️  Keeping existing .gitignore")
-                        return True
-            except Exception as e:
-                print(f"⚠️  Could not read existing .gitignore: {e}")
-        
-        try:
-            with open('.gitignore', 'w') as f:
-                f.write(gitignore_content)
-            print("✅ Created environment-aware .gitignore file")
-            return True
-        except Exception as e:
-            print(f"❌ Failed to create .gitignore: {e}")
-            return False
 
     def select_environment(self):
         """Let user select target environment."""
@@ -704,9 +572,6 @@ Thumbs.db
         print("=" * 50)
         print("Supports Development → Staging → Production workflow")
         print()
-        
-        if not self.create_gitignore():
-            sys.exit(1)
         
         env_key = self.select_environment()
         
